@@ -8,3 +8,5 @@ langchain[openai]
 langchain[anthropic]
 docker
 boto3
+redis
+uvicorn

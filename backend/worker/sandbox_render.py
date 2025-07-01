@@ -2,8 +2,11 @@ import shutil
 import docker, json, io, tarfile, uuid, tempfile
 from pathlib import Path
 import boto3
+import redis
+from backend.database.redis import r
 
-def sandbox_render(code: str, file_name: str, class_name: str) -> str:
+
+def sandbox_render(code: str, file_name: str, class_name: str, job_id: str) -> str:
     """
     Render `class_name` from `code` inside an isolated Manim container,
     upload the resulting .mp4 to S3, and return the public URL.
@@ -52,23 +55,25 @@ def sandbox_render(code: str, file_name: str, class_name: str) -> str:
         raise RuntimeError("Render timed out")
 
     logs = container.logs().decode()
-    container.remove(force=True)       
+    container.remove(force=True)
 
     if exit_status["StatusCode"] != 0:
         raise RuntimeError(f"Render failed:\n{logs}")
 
-    mp4_files = list(out_dir.rglob("*.mp4")) 
+    mp4_files = list(out_dir.rglob("*.mp4"))
     if not mp4_files:
+        r.set(job_id, "FAILED")
+        r.set(f"{job_id}:logs", logs)
         raise RuntimeError("Render succeeded but no .mp4 found.\n" + logs)
 
-    mp4 = mp4_files[0]            
+    mp4 = mp4_files[0]
 
-    s3     = boto3.client("s3")
+    s3 = boto3.client("s3")
     bucket = "text-2-manim"
-    key    = f"{uuid.uuid4()}.mp4"
+    key = f"{uuid.uuid4()}.mp4"
     s3.upload_file(str(mp4), bucket, key, ExtraArgs={"ACL": "public-read"})
     url = f"https://{bucket}.s3.amazonaws.com/{key}"
-
+    r.set(job_id, "COMPLETED")
+    r.set(f"{job_id}:url", url)
     shutil.rmtree(tmp_dir, ignore_errors=True)
     return url
-
