@@ -1,0 +1,10 @@
+manim
+langchain
+fastapi
+pydantic
+python-dotenv
+langchain[google-genai]
+langchain[openai]
+langchain[anthropic]
+docker
+boto3
