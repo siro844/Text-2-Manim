@@ -4,7 +4,11 @@ from pathlib import Path
 import boto3
 import redis
 from backend.database.redis import r
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
+BUCKET_NAME = os.getenv("BUCKET_NAME", "text-2-manim")
 
 def sandbox_render(code: str, file_name: str, class_name: str, job_id: str) -> str:
     """
@@ -69,7 +73,7 @@ def sandbox_render(code: str, file_name: str, class_name: str, job_id: str) -> s
     mp4 = mp4_files[0]
 
     s3 = boto3.client("s3")
-    bucket = "text-2-manim"
+    bucket = BUCKET_NAME
     key = f"{uuid.uuid4()}.mp4"
     s3.upload_file(str(mp4), bucket, key, ExtraArgs={"ACL": "public-read"})
     url = f"https://{bucket}.s3.amazonaws.com/{key}"
